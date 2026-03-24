@@ -1,8 +1,7 @@
-# run_tests.py - запуск тестов без pytest
+
 import sys
 import os
 
-# Добавляем путь к проекту
 sys.path.insert(0, os.path.dirname(__file__))
 
 from pages.divany_page import DivanyPage
@@ -14,10 +13,9 @@ import time
 
 def run_test():
     print("="*50)
-    print("🚀 ЗАПУСК ТЕСТА (без pytest)")
+    print(" поехали ")
     print("="*50)
     
-    # Настройки как в работающем тесте
     options = Options()
     options.add_argument("--start-maximized")
     
@@ -31,19 +29,19 @@ def run_test():
         time.sleep(3)
         
         title = page.get_title()
-        print(f"📄 Заголовок: {title}")
+        print(f" Заголовок: {title}")
         
         products_count = page.get_products_count()
-        print(f"📦 Товаров: {products_count}")
+        print(f" Товаров: {products_count}")
         
-        print("\n✅ ТЕСТ ПРОШЕЛ!")
+        print("\n ТЕСТ Прошел!")
         
     except Exception as e:
-        print(f"\n❌ ОШИБКА: {e}")
+        print(f"\n Не прошел :(): {e}")
         
     finally:
         driver.quit()
-        print("🔚 Браузер закрыт")
+        print("Браузер закрыт")
 
 if __name__ == "__main__":
     run_test()
