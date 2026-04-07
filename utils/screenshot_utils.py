@@ -8,11 +8,9 @@ from datetime import datetime
 
 
 class ScreenshotUtils:
-    """Класс для работы со скриншотами"""
     
     @staticmethod
     def take_screenshot(driver, name="screenshot", screenshots_dir="screenshots"):
-        """Делает скриншот и сохраняет в файл"""
         if not os.path.exists(screenshots_dir):
             os.makedirs(screenshots_dir)
         
@@ -25,7 +23,6 @@ class ScreenshotUtils:
     
     @staticmethod
     def attach_to_allure(driver, name="Скриншот"):
-        """Прикрепляет скриншот к Allure отчету"""
         screenshot = driver.get_screenshot_as_png()
         allure.attach(
             screenshot,

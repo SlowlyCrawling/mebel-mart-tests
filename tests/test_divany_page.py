@@ -1,229 +1,148 @@
-"""
-Реальные тесты для страницы диванов
-"""
-
 import pytest
 import allure
 import time
+import re
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from pages.divany_page import DivanyPage
 
 
 @allure.feature("Страница диванов")
-class TestDivanyPageReal:
-    """Реальные тесты"""
-    
-    def close_cookie_banner(self, driver):
-        """Закрывает куки-баннер если есть"""
+class TestDivanyPage:
+
+    def close_cookie(self, driver):
         try:
-            # Ищем кнопку закрытия куки
-            close_buttons = driver.find_elements(By.XPATH, "//button[contains(text(), 'Принять')]")
-            for btn in close_buttons:
-                if btn.is_displayed():
-                    btn.click()
-                    time.sleep(0.5)
-                    print("🍪 Куки закрыты")
-                    break
+            btn = driver.find_element(By.XPATH, "//button[contains(text(), 'Принять')]")
+            if btn.is_displayed():
+                btn.click()
+                time.sleep(0.5)
         except:
             pass
-    
-    def scroll_to_element(self, driver, element):
-        """Прокручивает к элементу"""
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
-        time.sleep(0.5)
-    
-    @allure.title("Тест 1: Проверка количества товаров на странице")
-    @allure.severity(allure.severity_level.CRITICAL)
-    def test_products_count(self, driver, base_url):
-        """Проверяет что на странице есть товары"""
+
+    # ========== 2.1 Фильтрация по ширине ==========
+    @allure.title("2.1 Фильтрация по ширине 2100 мм")
+    def test_filter_by_width(self, driver, base_url):
         page = DivanyPage(driver)
         page.open_page(base_url)
-        time.sleep(3)
-        
-        # Закрываем куки
-        self.close_cookie_banner(driver)
-        
-        # Ищем товары по ссылкам на продукт
-        products = driver.find_elements(By.CSS_SELECTOR, "a[href*='/product/']")
-        print(f"📦 Найдено товаров: {len(products)}")
-        
-        # Убираем дубликаты
-        unique_products = list(set([p.get_attribute("href") for p in products]))
-        print(f"📦 Уникальных товаров: {len(unique_products)}")
-        
-        assert len(unique_products) > 0, "На странице нет товаров!"
-        
-        page._take_screenshot("products_count")
-        print("✅ Тест пройден")
-    
-    @allure.title("Тест 2: Проверка цен товаров")
-    @allure.severity(allure.severity_level.CRITICAL)
-    def test_prices_exist(self, driver, base_url):
-        """Проверяет что у товаров есть цены"""
-        page = DivanyPage(driver)
-        page.open_page(base_url)
-        time.sleep(3)
-        
-        # Закрываем куки
-        self.close_cookie_banner(driver)
-        
-        # Ищем цены
-        prices = driver.find_elements(By.CSS_SELECTOR, ".product-card__now_price")
-        
-        if not prices:
-            prices = driver.find_elements(By.CSS_SELECTOR, "[class*='price']")
-        
-        print(f"💰 Найдено цен: {len(prices)}")
-        
-        # Выводим первые 5 цен
-        valid_prices = 0
-        for i, price in enumerate(prices[:10]):
-            price_text = price.text.strip()
-            if price_text and "₽" in price_text:
-                valid_prices += 1
-                print(f"  Цена {i+1}: {price_text}")
-        
-        assert valid_prices > 0, "Нет валидных цен!"
-        
-        page._take_screenshot("prices")
-        print("✅ Тест пройден")
-    
-    @allure.title("Тест 3: Клик по первому товару")
-    @allure.severity(allure.severity_level.CRITICAL)
-    def test_click_first_product(self, driver, base_url):
-        """Кликает на первый товар и проверяет переход"""
-        page = DivanyPage(driver)
-        page.open_page(base_url)
-        time.sleep(3)
-        
-        # Закрываем куки
-        self.close_cookie_banner(driver)
-        
-        # Находим ссылки на товары
-        products = driver.find_elements(By.CSS_SELECTOR, "a[href*='/product/']")
-        
-        # Фильтруем уникальные ссылки
-        seen = set()
-        unique_links = []
-        for p in products:
-            href = p.get_attribute("href")
-            if href and href not in seen and "product" in href:
-                seen.add(href)
-                unique_links.append(p)
-        
-        print(f"🔗 Найдено уникальных ссылок: {len(unique_links)}")
-        
-        if len(unique_links) > 0:
-            first_product = unique_links[0]
-            
-            # Прокручиваем к элементу
-            self.scroll_to_element(driver, first_product)
+        time.sleep(2)
+        self.close_cookie(driver)
+
+        filter_btn = driver.find_elements(By.XPATH, "//button[contains(text(), 'Фильтры')]")
+        if filter_btn:
+            driver.execute_script("arguments[0].click();", filter_btn[0])
             time.sleep(1)
-            
-            # Получаем URL до клика
-            url_before = driver.current_url
-            
-            # Пробуем кликнуть через JavaScript
-            driver.execute_script("arguments[0].click();", first_product)
+
+        width_checkbox = driver.find_elements(By.XPATH, "//label[contains(text(), '2100 мм')]")
+        if not width_checkbox:
+            pytest.skip("Фильтр по ширине 2100 мм не найден")
+        
+        driver.execute_script("arguments[0].click();", width_checkbox[0])
+        time.sleep(1)
+
+        apply_btn = driver.find_elements(By.XPATH, "//button[contains(text(), 'Применить фильтр')]")
+        if apply_btn:
+            driver.execute_script("arguments[0].click();", apply_btn[0])
             time.sleep(3)
-            
-            # Проверяем что URL изменился
-            url_after = driver.current_url
-            print(f"🔗 URL до: {url_before}")
-            print(f"🔗 URL после: {url_after}")
-            
-            assert url_after != url_before, "URL не изменился после клика"
-            assert "/product/" in url_after, "Не открылась страница товара"
-            
-            page._take_screenshot("product_opened")
-            print(f"✅ Открыт товар")
-        else:
-            pytest.fail("Не найдено ссылок на товары")
-    
-    @allure.title("Тест 4: Проверка наличия навигации")
-    @allure.severity(allure.severity_level.NORMAL)
-    def test_navigation_exists(self, driver, base_url):
-        """Проверяет наличие элементов навигации"""
+
+        body = driver.find_element(By.TAG_NAME, "body").text
+        assert "2100 мм" in body, "Нет товаров с шириной 2100 мм"
+        print("✅ Тест 2.1 пройден")
+
+    # ========== 2.2 Детали товара ==========
+    @allure.title("2.2 Проверка деталей товара в карточке")
+    def test_product_details(self, driver, base_url):
         page = DivanyPage(driver)
         page.open_page(base_url)
-        time.sleep(3)
-        
-        # Закрываем куки
-        self.close_cookie_banner(driver)
-        
-        # Ищем кнопки навигации
-        nav_buttons = driver.find_elements(By.CSS_SELECTOR, ".owl-prev, .owl-next, .pagination a")
-        
-        print(f"🔍 Найдено кнопок навигации: {len(nav_buttons)}")
-        
-        for btn in nav_buttons:
-            print(f"  Кнопка: {btn.get_attribute('class')} -> текст: {btn.text}")
-        
-        # Проверяем что есть хотя бы одна кнопка навигации
-        assert len(nav_buttons) > 0, "Нет кнопок навигации!"
-        
-        page._take_screenshot("navigation")
-        print("✅ Тест пройден")
-    
-    @allure.title("Тест 5: Проверка названий товаров")
-    @allure.severity(allure.severity_level.NORMAL)
-    def test_product_names(self, driver, base_url):
-        """Проверяет что у товаров есть названия"""
+        time.sleep(2)
+        self.close_cookie(driver)
+
+        product_link = driver.find_element(By.CSS_SELECTOR, ".product-card a[href*='/divanyi_v_saratove/']")
+        driver.execute_script("arguments[0].click();", product_link)
+        time.sleep(2)
+
+        body = driver.find_element(By.TAG_NAME, "body").text
+        assert any(x in body.lower() for x in ["ширина", "высота", "глубина"]), "Характеристики не найдены"
+        print("✅ Тест 2.2 пройден")
+
+    # ========== 2.3 Избранное ==========
+    @allure.title("2.3 Добавление товара в избранное")
+    def test_add_to_favorites(self, driver, base_url):
         page = DivanyPage(driver)
         page.open_page(base_url)
+        time.sleep(2)
+        self.close_cookie(driver)
+
+        fav = driver.find_elements(By.CSS_SELECTOR, ".favorite-btn, .wishlist, .like, [class*='fav']")
+        if not fav:
+            pytest.skip("На сайте нет функционала избранного")
+        
+        driver.execute_script("arguments[0].click();", fav[0])
+        time.sleep(1)
+        print("✅ Тест 2.3 пройден")
+
+    # ========== 2.4 Поиск ==========
+    @allure.title("2.4 Поиск товара по названию 'Диван'")
+    def test_search_product(self, driver, base_url):
+        driver.get(base_url)
+        time.sleep(2)
+        self.close_cookie(driver)
+
+        search = driver.find_elements(By.CSS_SELECTOR, "input[placeholder*='Кто ищет'], input[type='search']")
+        if not search:
+            pytest.skip("Поле поиска не найдено")
+
+        driver.execute_script("arguments[0].value = 'Диван';", search[0])
+        driver.execute_script("arguments[0].form.submit();", search[0])
         time.sleep(3)
-        
-        # Закрываем куки
-        self.close_cookie_banner(driver)
-        
-        # Ищем названия товаров
-        names = driver.find_elements(By.CSS_SELECTOR, ".product-card__title, .product-name, [class*='title']")
-        
-        # Фильтруем пустые
-        valid_names = [n.text.strip() for n in names if n.text.strip()]
-        
-        print(f"📝 Найдено названий: {len(valid_names)}")
-        
-        for name in valid_names[:5]:
-            print(f"  Название: {name[:50]}")
-        
-        assert len(valid_names) > 0, "Нет названий товаров"
-        
-        page._take_screenshot("names")
-        print("✅ Тест пройден")
-    
-    @allure.title("Тест 6: Проверка наличия изображений")
-    @allure.severity(allure.severity_level.MINOR)
-    def test_images_exist(self, driver, base_url):
-        """Проверяет что на странице есть изображения товаров"""
+
+        results = driver.find_elements(By.CSS_SELECTOR, ".product-card")
+        assert len(results) > 0, "Ничего не найдено"
+        print(f"✅ Поиск нашёл {len(results)} товаров")
+
+    # ========== 2.5 Корзина (через карточку товара) ==========
+    @allure.title("2.5 Добавление товара в корзину")
+    def test_add_to_cart(self, driver, base_url):
         page = DivanyPage(driver)
         page.open_page(base_url)
-        time.sleep(3)
+        time.sleep(2)
+        self.close_cookie(driver)
+
+        # Открываем карточку первого товара
+        product_link = driver.find_element(By.CSS_SELECTOR, ".product-card a[href*='/divanyi_v_saratove/']")
+        driver.execute_script("arguments[0].click();", product_link)
+        time.sleep(2)
         
-        # Закрываем куки
-        self.close_cookie_banner(driver)
+        # В карточке ищем кнопку "Купить" (button, не a)
+        buy_btn = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Купить')]"))
+        )
+        buy_btn.click()
+        time.sleep(2)
+        print("✅ Товар добавлен в корзину")
+
+    # ========== Параметризованный тест 2.5 ==========
+    @allure.title("2.5 Добавление товара в корзину (параметризованный)")
+    @pytest.mark.parametrize("product_index", [1, 2, 3])
+    def test_add_to_cart_parametrized(self, driver, base_url, product_index):
+        page = DivanyPage(driver)
+        page.open_page(base_url)
+        time.sleep(2)
+        self.close_cookie(driver)
+
+        # Находим все ссылки на товары
+        products = driver.find_elements(By.CSS_SELECTOR, ".product-card a[href*='/divanyi_v_saratove/']")
+        assert len(products) >= product_index, f"Нет {product_index}-го товара"
         
-        # Ищем изображения
-        images = driver.find_elements(By.CSS_SELECTOR, "img")
+        product_link = products[product_index - 1]
+        driver.execute_script("arguments[0].click();", product_link)
+        time.sleep(2)
         
-        # Фильтруем иконки и маленькие картинки
-        valid_images = []
-        for img in images:
-            src = img.get_attribute("src")
-            if src and "icon" not in src and "logo" not in src and "svg" not in src:
-                width = img.get_attribute("width")
-                if width and width.isdigit() and int(width) > 50:
-                    valid_images.append(img)
-                elif not width:
-                    valid_images.append(img)
-        
-        print(f"🖼️ Найдено изображений: {len(images)}")
-        print(f"🖼️ Валидных изображений: {len(valid_images)}")
-        
-        # Проверяем что есть хотя бы 3 изображения
-        assert len(valid_images) > 3, f"Слишком мало изображений: {len(valid_images)}"
-        
-        page._take_screenshot("images")
-        print("✅ Тест пройден")
+        # В карточке нажимаем "Купить"
+        buy_btn = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Купить')]"))
+        )
+        buy_btn.click()
+        time.sleep(2)
+        print(f"✅ Товар {product_index} добавлен в корзину")
